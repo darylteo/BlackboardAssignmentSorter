@@ -1,16 +1,20 @@
 import os
 import shutil
 import re
+import argparse
 from collections import namedtuple
 
 File = namedtuple('File','groupname attempt shortname fullfile')
 
+parser = argparse.ArgumentParser()
+parser.add_argument("echo")
 
 def main():
     working = os.getcwd()
 
     fromdir = working
     todir = os.path.join(working,'sorted')
+    logfile = os.path.join(working,'sort.log')
 
     # grab the file list
     files = os.listdir(fromdir)
@@ -23,10 +27,7 @@ def main():
 
     # generate a submission
     results = generate_log(groups)
-
-    for group in results:
-        attempt = results[group]
-        print(group + ',' + attempt)
+    write_log(logfile,results)
     
 
 # take a list of file strings representing filenames
@@ -107,7 +108,6 @@ def generate_log(groups):
     dateregex = re.compile('(?P<year>\d+?)-(?P<month>\d+?)-(?P<day>\d+?)-(?P<hour>\d+?)-(?P<min>\d+?)-(?P<sec>\d+)')
 
     def string_to_date(string):
-        print(string)
         matches = dateregex.match(string)
 
         year,month,day,hour,minutes,sec = matches.group('year','month','day','hour','min','sec')
@@ -127,5 +127,20 @@ def generate_log(groups):
         attempts[group] = string_to_date(attempt)
 
     return attempts
+
+def write_log(file,attempts):
+    f = open(file,'w')
+
+    if(f == None):
+        print("Could not open log file", file=sys.stderr)
+
+    for group in attempts:
+        attempt = attempts[group]
+
+        print(group,attempt, sep=",",file=f)
+
+    f.flush()
+    f.close()
+
 # begin
 main()
