@@ -23,7 +23,6 @@ def main():
     # generate a submission
     results = generate_log(groups)
     write_log(logfile,results)
-    
 
 # take a list of file strings representing filenames
 # files must be top level (not in a directory)
@@ -33,13 +32,13 @@ def sort_groups(files):
 
     # stores groups
     groups = dict()
-    
+
     for file in files:
         matches = regex.match(file)
 
         if(matches):
             print_log('File Found: ' + file)
-        
+
             groupname,attempt,name,ext,fullfile = matches.group('groupname','attempt','name','ext','fullfile')
             # grr, sometimes group names have trailing spaces... stupid blackboard
             # try to avoid causing this
@@ -62,21 +61,44 @@ def sort_groups(files):
 # files will then be moved to their respective attempt folder
 def distribute(groups, destination):
 
-    # create the target folder
-    # will overwrite the entire folder if it already exists
-    def setup_target_folder(folder):
+    # checks to see if the user wants to overwrite the destination directory
+    def check_overwrite_destination_folder(folder):
         if (os.path.isdir(folder)):
-            shutil.rmtree(folder)
+            respond = input('The destination folder already exists. Are you sure you wish to continue? "Y" to continue, anything else to cancel: ')
+            
+            if (respond != 'Y' and respond != 'y'):
+                return False
+            
+            return True
+        
+        return True
 
-        os.makedirs(folder)
-
+    # checks if destination folder exists and creates if it doesn't
+    def create_destination_folder_if_not_exists(folder):
+        if not (os.path.isdir(folder)):
+            os.makedirs(folder)
+        
     # creates a attempt folder in the group folder if
     # the attempt folder does not exist
-    def setup_attempt_folder(folder):
+    def create_or_overwrite_attempt_folder(folder):
         if (os.path.isdir(folder)):
-            return
+            os.removedirs(folder)
 
         os.makedirs(folder)
+
+    # deletes a folder recursively (shutils.rmtree does funny things on Windows)
+    def delete_folder(folder):
+        if not (os.path.isdir(folder)):
+            return
+
+        files = os.listdir(folder)
+        for file in files:
+            if(os.path.isdir(file)):
+                delete_folder(file)
+            else:
+                os.remove(file)
+
+        os.rmdir(folder)
 
     # copies the target file to the destination
     def copy_file(fromfile,destinationfile):
@@ -86,19 +108,22 @@ def distribute(groups, destination):
         shutil.copyfile(fromfile,destinationfile)
 
     # prepare the target folder
-    setup_target_folder(destination)
-    
+    if not check_overwrite_destination_folder(destination):
+        return
+        
+    create_destination_folder_if_not_exists(destination)
+
     for group in groups:
         files = groups[group]
 
         for file in files:
             # setup the folder if necessary
             target = os.path.join(destination,file.groupname,file.attempt)
-            setup_attempt_folder(target)
+            create_or_overwrite_attempt_folder(target)
 
             # move the file
             target = os.path.join(target, file.shortname)
-            
+
             print_log('Copying File:\nSource: ' + file.fullfile + '\nTarget: ' + target + '\n')
             copy_file(file.fullfile,target)
 
@@ -110,14 +135,14 @@ def generate_log(groups):
 
         year,month,day,hour,minutes,sec = matches.group('year','month','day','hour','min','sec')
         return '-'.join((year,month,day)) + ' ' + ':'.join((hour,minutes,sec))
-        
+
     attempts = dict()
 
     for group in groups:
         files = groups[group]
 
         attempt = '';
-        
+
         for file in files:
             if (file.attempt > attempt):
                 attempt = file.attempt
@@ -149,22 +174,22 @@ def parse_args():
         '--verbose',
         dest='verbose',
         help='Displays verbose sorting information',
-        
+
         action='store_const',
         const=True,
         default=False
     )
-      
+
     parser.add_argument(
         '-s',
         '--source',
         dest='source',
         help='Directory where original files are stored.',
-        
+
         default=None,
         metavar='source'
     )
-  
+
     parser.add_argument(
         '-d',
         '--destination',
@@ -173,21 +198,21 @@ def parse_args():
         help='Directory where files will be sorted into.',
         metavar='destination'
     )
-    
+
     args = parser.parse_args()
-    
+
     if not (args.source):
         args.source = working
-        
+
     if not (args.destination):
         args.destination = os.path.join(working,'sorted')
-    
+
     return args
-    
+
 def print_log(msg):
     if(args.verbose):
         print(msg)
-    
+
 # begin
 args = parse_args()
 print_log(args)
