@@ -6,15 +6,10 @@ from collections import namedtuple
 
 File = namedtuple('File','groupname attempt shortname fullfile')
 
-parser = argparse.ArgumentParser()
-parser.add_argument("echo")
-
 def main():
-    working = os.getcwd()
-
-    fromdir = working
-    todir = os.path.join(working,'sorted')
-    logfile = os.path.join(working,'sort.log')
+    fromdir = args.source
+    todir = args.destination
+    logfile = os.path.join(args.destination,'sort.log')
 
     # grab the file list
     files = os.listdir(fromdir)
@@ -42,8 +37,9 @@ def sort_groups(files):
     for file in files:
         matches = regex.match(file)
 
-        print(file)
         if(matches):
+            print_log('File Found: ' + file)
+        
             groupname,attempt,name,ext,fullfile = matches.group('groupname','attempt','name','ext','fullfile')
             # grr, sometimes group names have trailing spaces... stupid blackboard
             # try to avoid causing this
@@ -102,6 +98,8 @@ def distribute(groups, destination):
 
             # move the file
             target = os.path.join(target, file.shortname)
+            
+            print_log('Copying File:\nSource: ' + file.fullfile + '\nTarget: ' + target + '\n')
             copy_file(file.fullfile,target)
 
 def generate_log(groups):
@@ -142,5 +140,56 @@ def write_log(file,attempts):
     f.flush()
     f.close()
 
+def parse_args():
+    working = os.getcwd()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        dest='verbose',
+        help='Displays verbose sorting information',
+        
+        action='store_const',
+        const=True,
+        default=False
+    )
+      
+    parser.add_argument(
+        '-s',
+        '--source',
+        dest='source',
+        help='Directory where original files are stored.',
+        
+        default=None,
+        metavar='source'
+    )
+  
+    parser.add_argument(
+        '-d',
+        '--destination',
+        dest='destination',
+        default=None, # working directory
+        help='Directory where files will be sorted into.',
+        metavar='destination'
+    )
+    
+    args = parser.parse_args()
+    
+    if not (args.source):
+        args.source = working
+        
+    if not (args.destination):
+        args.destination = os.path.join(working,'sorted')
+    
+    return args
+    
+def print_log(msg):
+    if(args.verbose):
+        print(msg)
+    
 # begin
+args = parse_args()
+print_log(args)
+
 main()
