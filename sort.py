@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import shutil
 import re
@@ -11,10 +13,13 @@ def main():
     todir = args.destination
     logfile = os.path.join(args.destination,'sort.log')
 
+    if not verify_arguments(args):
+        return
+
     # grab the file list
     files = os.listdir(fromdir)
 
-    # sort the files 
+    # sort the files
     groups = sort_groups(files)
 
     # distribute
@@ -23,6 +28,18 @@ def main():
     # generate a submission
     results = generate_log(groups)
     write_log(logfile,results)
+
+def verify_arguments(args):
+    if (os.path.isfile(args.destination)):
+        print('Destination "' + args.destination + '" is a File. Please delete it or try a different destination folder.')
+        return False
+
+    if (os.path.isdir(args.destination)):
+        if (os.path.samefile(args.destination,os.getcwd())):
+            print('Destination "' + args.destination + '" cannot be working directory')
+            return False
+
+    return True
 
 # take a list of file strings representing filenames
 # files must be top level (not in a directory)
@@ -65,40 +82,30 @@ def distribute(groups, destination):
     def check_overwrite_destination_folder(folder):
         if (os.path.isdir(folder)):
             respond = input('The destination folder already exists. Are you sure you wish to continue? "Y" to continue, anything else to cancel: ')
-            
+
             if (respond != 'Y' and respond != 'y'):
                 return False
-            
+
             return True
-        
+
         return True
 
-    # checks if destination folder exists and creates if it doesn't
-    def create_destination_folder_if_not_exists(folder):
-        if not (os.path.isdir(folder)):
-            os.makedirs(folder)
-        
-    # creates a attempt folder in the group folder if
-    # the attempt folder does not exist
-    def create_or_overwrite_attempt_folder(folder):
-        if (os.path.isdir(folder)):
-            os.removedirs(folder)
-
-        os.makedirs(folder)
-
-    # deletes a folder recursively (shutils.rmtree does funny things on Windows)
+    # deletes a folder.
     def delete_folder(folder):
-        if not (os.path.isdir(folder)):
-            return
-
-        files = os.listdir(folder)
-        for file in files:
-            if(os.path.isdir(file)):
-                delete_folder(file)
-            else:
-                os.remove(file)
+        for root, dirs, files in os.walk(folder, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
 
         os.rmdir(folder)
+
+    # checks if folder exists and creates if it doesn't
+    def create_or_overwrite_folder(folder):
+        if (os.path.isdir(folder)):
+            delete_folder(folder)
+
+        os.makedirs(folder)
 
     # copies the target file to the destination
     def copy_file(fromfile,destinationfile):
@@ -110,8 +117,8 @@ def distribute(groups, destination):
     # prepare the target folder
     if not check_overwrite_destination_folder(destination):
         return
-        
-    create_destination_folder_if_not_exists(destination)
+
+    create_or_overwrite_folder(destination)
 
     for group in groups:
         files = groups[group]
@@ -119,7 +126,7 @@ def distribute(groups, destination):
         for file in files:
             # setup the folder if necessary
             target = os.path.join(destination,file.groupname,file.attempt)
-            create_or_overwrite_attempt_folder(target)
+            create_or_overwrite_folder(target)
 
             # move the file
             target = os.path.join(target, file.shortname)
@@ -206,6 +213,9 @@ def parse_args():
 
     if not (args.destination):
         args.destination = os.path.join(working,'sorted')
+
+    args.source = os.path.abspath(args.source)
+    args.destination = os.path.abspath(args.destination)
 
     return args
 
