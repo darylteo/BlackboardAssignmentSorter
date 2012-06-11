@@ -26,6 +26,9 @@ def main():
     results = generate_log(groups)
     write_log(logfile,results)
 
+# verifies the validity of the arguments
+# - destination path cannot be an existing file.
+# - destination cannot be working directory.
 def verify_arguments(args):
     if (os.path.isfile(args.destination)):
         print('Destination "' + args.destination + '" is a File. Please delete it or try a different destination folder.')
@@ -38,7 +41,7 @@ def verify_arguments(args):
 
     return True
 
-# sort all the files found in a folder.
+# sort all the files found in a folder into File tuples.
 # nested folders are ignored.
 def sort_groups(folder):
     # compile regex for parsing the string
@@ -132,12 +135,14 @@ def distribute(groups, destination):
 
             # move the file
             target = os.path.join(target, file.shortname)
-
             copy_file(file.fullfile,target)
 
+# this generates a submission log
+# returns a dict of <string>,<string>
 def generate_log(groups):
     dateregex = re.compile('(?P<year>\d+?)-(?P<month>\d+?)-(?P<day>\d+?)-(?P<hour>\d+?)-(?P<min>\d+?)-(?P<sec>\d+)')
 
+    # converts a blackboard date string to a proper date format
     def string_to_date(string):
         matches = dateregex.match(string)
 
@@ -159,6 +164,10 @@ def generate_log(groups):
 
     return attempts
 
+# this generates a file based on the submission log
+# expects a dict of <string>,<string> for GroupName and
+# Date. Outputs a file, each line for each group in the
+# format <group name>, <latest submission date>
 def write_log(file,attempts):
     f = open(file,'w')
 
@@ -173,6 +182,9 @@ def write_log(file,attempts):
     f.flush()
     f.close()
 
+
+# gets the list of arguments from the command line.
+# converts directory paths to absolute paths.
 def parse_args():
     working = os.getcwd()
 
@@ -220,6 +232,8 @@ def parse_args():
 
     return args
 
+
+# outputs to stdout if -verbose option is set
 def print_log(msg):
     if(args.verbose):
         print(msg)
