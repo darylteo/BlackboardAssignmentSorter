@@ -16,11 +16,8 @@ def main():
     if not verify_arguments(args):
         return
 
-    # grab the file list
-    files = os.listdir(fromdir)
-
     # sort the files
-    groups = sort_groups(files)
+    groups = sort_groups(fromdir)
 
     # distribute
     distribute(groups, todir)
@@ -41,35 +38,39 @@ def verify_arguments(args):
 
     return True
 
-# take a list of file strings representing filenames
-# files must be top level (not in a directory)
-def sort_groups(files):
+# sort all the files found in a folder.
+# nested folders are ignored.
+def sort_groups(folder):
     # compile regex for parsing the string
-    regex = re.compile('(?P<fullfile>.*?_(?P<groupname>.+?)_attempt_(?P<attempt>.+?)(_(?P<name>.+?))?\.(?P<ext>.*))')
+    regex = re.compile('.*?_(?P<groupname>.+?)_attempt_(?P<attempt>.+?)(_(?P<name>.+?))?\.(?P<ext>.*)')
 
     # stores groups
     groups = dict()
 
-    for file in files:
-        matches = regex.match(file)
+    for root,dir,files in os.walk(folder):
 
-        if(matches):
-            print_log('File Found: ' + file)
+        for file in files:
+            matches = regex.match(file)
 
-            groupname,attempt,name,ext,fullfile = matches.group('groupname','attempt','name','ext','fullfile')
-            # grr, sometimes group names have trailing spaces... stupid blackboard
-            # try to avoid causing this
-            groupname = groupname.strip()
+            if(matches):
+                print_log('File Found: ' + file)
 
-            if(name is None):
-                name = 'comments'
+                groupname,attempt,name,ext = matches.group('groupname','attempt','name','ext')
+                # grr, sometimes group names have trailing spaces... stupid blackboard
+                # try to avoid causing this
+                groupname = groupname.strip()
 
-            # create a list of files for this group
-            if(groupname not in groups):
-                groups[groupname] = list()
+                if(name is None):
+                    name = 'comments'
 
-            shortname = name + '.' + ext;
-            groups[groupname].append(File(groupname,attempt,shortname,fullfile))
+                fullfile = os.path.join(root,file)
+
+                # create a list of files for this group
+                if(groupname not in groups):
+                    groups[groupname] = list()
+
+                shortname = name + '.' + ext;
+                groups[groupname].append(File(groupname,attempt,shortname,fullfile))
 
     return groups
 
@@ -112,6 +113,7 @@ def distribute(groups, destination):
         if not os.path.isfile(fromfile):
             return
 
+        print_log('Copying File:\nSource: ' + file.fullfile + '\nTarget: ' + target + '\n')
         shutil.copyfile(fromfile,destinationfile)
 
     # prepare the target folder
@@ -131,7 +133,6 @@ def distribute(groups, destination):
             # move the file
             target = os.path.join(target, file.shortname)
 
-            print_log('Copying File:\nSource: ' + file.fullfile + '\nTarget: ' + target + '\n')
             copy_file(file.fullfile,target)
 
 def generate_log(groups):
